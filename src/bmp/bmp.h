@@ -7,6 +7,15 @@
 #include <string>
 
 class BMP {
+    enum class BMPType { // P* - type with palette, NP* - type without palette
+        P1 = 1,
+        P4 = 4,
+        P8 = 8,
+        NP16 = 16,
+        NP24 = 24,
+        NP32 = 32
+    } _bmp_type;
+
 #pragma pack(push)
 #pragma pack(1)
     struct BMPFileHeader {
@@ -29,17 +38,29 @@ class BMP {
         uint32_t bi_colors_used; 
         uint32_t bi_colors_important;
     } _info_header;
+    struct RGBQuad {
+        uint8_t rgb_blue;
+        uint8_t rgb_green;
+        uint8_t rgb_red;
+        uint8_t rgb_reserved;
+    };
 #pragma pack(pop)
-    std::vector<uint8_t> _data;
 
+    std::vector<uint8_t> _data;
+    std::vector<RGBQuad> _palette;
 
 public:
     BMP() = default;
     BMP(const std::string& fname);
 
     void save_file(const std::string& fname);
-    void save_file(const std::string& fname, const std::vector<uint8_t>& data);
+    void save_file(const std::string& fname, const std::vector<uint8_t>& data, const std::vector<RGBQuad>& palette = {});
     void save_file_by_component(const std::string& fname, const char mod);
+
+    std::vector<uint8_t> const& get_data() const { return _data; }
+    int32_t const get_width() const { return _info_header.bi_width; }
+    int32_t const get_height() const { return _info_header.bi_height; }
+    uint32_t const get_size_image() const { return _info_header.bi_size_image; }
 
     void print_header() {
         std::cout << 
