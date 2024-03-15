@@ -1,14 +1,15 @@
 #include "bmp.h"
+#include "analysis.h"
 
 #include <iostream>
 
 using namespace std;
 
 int main(int argc, char* argv[]) {
-    BMP f("parrot.bmp");
-    f.save_file("erere.bmp");
+    BMP f("goldhill.bmp");
 
     f.print_header();
+    rgb_correlation(f);
 
     return 0;
 }
