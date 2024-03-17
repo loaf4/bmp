@@ -57,7 +57,7 @@ public:
     void save_file(const std::string& fname, const std::vector<uint8_t>& data, const std::vector<RGBQuad>& palette = {});
     void save_file_by_component(const std::string& fname, const char mod);
 
-    std::vector<uint8_t> get_data() const { return _data; }
+    const std::vector<uint8_t>& get_data() const { return _data; }
     int32_t const get_width() const { return _info_header.bi_width; }
     int32_t const get_height() const { return _info_header.bi_height; }
     uint32_t const get_size_image() const { return _info_header.bi_size_image; }

@@ -1,13 +1,23 @@
 #include "analysis.h"
 
+#include <algorithm>
+#include <future>
+#include <thread>
+#include <fstream>
+#include <utility>
 #include <cmath>
 #include <cstdint>
+#include <utility>
 #include <vector>
 #include <chrono>
+#include <map>
+#include <filesystem>
 
-void calc_correlation(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
+namespace fs = std::filesystem; 
+
+double correlation(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
     double m_a {}, d_a {}, m_b {}, d_b {};
-    int c_size {static_cast<int>(a.size())};
+    int c_size {static_cast<int>(std::min(a.size(), b.size()))};
 
     // math expectation
     for (int i {}; i < c_size; ++i) {
@@ -33,7 +43,7 @@ void calc_correlation(const std::vector<uint8_t>& a, const std::vector<uint8_t>&
     r /= c_size;
     r /= d_a * d_b;
 
-    std::cout << "Correlation of components = " << r << std::endl;
+    return r;
 }
 
 void rgb_correlation(const BMP& file) {
@@ -45,12 +55,9 @@ void rgb_correlation(const BMP& file) {
         g[j] = ddata[i + 1];
         b[j] = ddata[i    ];
     }
-    std::cout << "Correlation of image components: [R,G]" << std::endl;
-    calc_correlation(r, g);
-    std::cout << "Correlation of image components: [G,B]" << std::endl;
-    calc_correlation(g, b);
-    std::cout << "Correlation of image components: [B,R]" << std::endl;
-    calc_correlation(b, r);
+    std::cout << "Correlation of image components: [R,G] = " << correlation(r, g) << std::endl;
+    std::cout << "Correlation of image components: [G,B] = " << correlation(g, b) << std::endl;
+    std::cout << "Correlation of image components: [B,R] = " << correlation(b, r) << std::endl;
 
     // previous version
     /*
@@ -144,8 +151,119 @@ double standard_deviation(const std::vector<uint8_t>& data, double m_e, uint32_t
     return std::sqrt(d / (width * height - 1));
 }
 
-void auto_correlation(const BMP &file, int y) {
-    for (int x {-(file.get_width() / 4 - 1)}; x < file.get_width() / 4; ++x) {
+std::map<int, double> auto_correlation(std::vector<uint8_t> data, int32_t w, int32_t h, int y) {
+    std::map<int, double> res;
 
+    /*
+    for (int x {-(w / 4 - 1)}; x < w / 4; ++x) {
+        std::vector<uint8_t> a;
+        std::vector<uint8_t> b;
+        for (int i {1}; i < h - y; ++i) {
+            for (int j {1}; j < w - x; ++j) {
+                a.push_back(data[i * w + j]);
+            }
+        }
+        for (int m {y + 1}; m < h; ++m) {
+            for (int n {x + 1}; n < w; ++n) {
+                b.push_back(data[m * w + n]);
+            }
+        }
+        res.insert(std::make_pair(x, correlation(a, b)));
     }
+    */
+    int upper_bound {h}, lower_bound {},
+        upper_bound_slide {h}, lower_bound_slide {};
+    if (y < 0) {
+        lower_bound_slide -= y;
+        upper_bound += y; 
+    } else {
+        upper_bound_slide -= y;
+        lower_bound += y;
+    }
+    for (int x {-(w / 4 - 1)}; x < 0; ++x) {
+        std::vector<uint8_t> a;
+        std::vector<uint8_t> b;
+        // static image
+        for (int i {lower_bound}; i < upper_bound; ++i) {
+            for (int j {0}; j < w + x; ++j) {
+                a.push_back(data[i * w + j]);
+            }
+        }
+        // sliding image
+        for (int m {lower_bound_slide}; m < upper_bound_slide; ++m) {
+            for (int n {+x}; n < w; ++n) {
+                b.push_back(data[m * w + n]);
+            }
+        }
+        res.insert(std::make_pair(x, correlation(a, b)));
+    }
+    for (int x {0}; x < w / 4; ++x) {
+        std::vector<uint8_t> a;
+        std::vector<uint8_t> b;
+        // static image
+        for (int i {lower_bound}; i < upper_bound; ++i) {
+            for (int j {x}; j < w; ++j) {
+                a.push_back(data[i * w + j]);
+            }
+        }
+        // sliding image
+        for (int m {lower_bound_slide}; m < upper_bound_slide; ++m) {
+            for (int n {0}; n < w - x; ++n) {
+                b.push_back(data[m * w + n]);
+            }
+        }
+        res.insert(std::make_pair(x, correlation(a, b)));
+    }
+    return res;
+}
+
+void auto_correlation_by_channel_along_y(std::vector<uint8_t> &data, int32_t w, int32_t h, int start, int end, int step, const std::string &filename) {
+    fs::path fpath(fs::current_path().parent_path().parent_path() / "tmp");
+    if (!fs::is_directory(fpath)) {
+        fs::create_directory(fpath);
+    }
+    std::ofstream fout(fpath / filename);
+
+    int thread_count {(end - start) / step + 1};
+    std::vector<std::map<int, double>> au_cr_results(thread_count);
+    std::vector<std::future<std::map<int, double>>> au_cr_futures(thread_count);
+
+    int i {};
+    for (int y {start}; y <= end; y += step) {
+        au_cr_futures[i++] = std::async(std::launch::async, auto_correlation, data, w, h, y);
+    }
+    for (i = 0; i < thread_count; ++i) {
+        au_cr_results[i] = au_cr_futures[i].get();
+    }
+    for (int k {-(w / 4 - 1)}; k < w / 4; ++k) {
+        fout << k; 
+        for (int j {}; j < thread_count; ++j) {
+            fout << " " << au_cr_results[j].at(k);
+        }
+        fout << "\n";
+    }
+}
+
+void rgb_auto_correlation(const BMP& file, const std::string &filename) {
+    int32_t im_size {file.get_height() * file.get_width()},
+            w {file.get_width()},
+            h {file.get_height()};
+    std::vector<uint8_t> channel(im_size);
+    const std::vector<uint8_t> &data = file.get_data();
+
+    // r channel auto correlation
+    for (int i {}, j {}; i < data.size(); i += 3, ++j) {
+        channel[j] = data[i + 2];
+    }
+    auto_correlation_by_channel_along_y(channel, w, h, -10, 10, 5, (filename + "_r.txt"));
+    // g channel auto correlation
+    for (int i {}, j {}; i < data.size(); i += 3, ++j) {
+        channel[j] = data[i + 1];
+    }
+    auto_correlation_by_channel_along_y(channel, w, h, -10, 10, 5, (filename + "_g.txt"));
+    // b channel auto correlation
+    for (int i {}, j {}; i < data.size(); i += 3, ++j) {
+        channel[j] = data[i];
+    }
+    auto_correlation_by_channel_along_y(channel, w, h, -10, 10, 5, (filename + "_b.txt"));
 }

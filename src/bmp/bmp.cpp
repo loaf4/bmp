@@ -137,5 +137,5 @@ void BMP::save_file_by_component(const std::string& fname, const char mod) {
         default:
             break;
     }
-    save_file(fname + "_by_" + mod + "_component", tmp_data);
+    save_file(fname + "_by_" + mod + "_component.bmp", tmp_data);
 }
