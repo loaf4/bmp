@@ -17,6 +17,9 @@ double standard_deviation(const std::vector<uint8_t>& data, double m_e, uint32_t
 std::map<int, double> auto_correlation(std::vector<uint8_t> data, int32_t w, int32_t h, int y);
 void auto_correlation_by_channel_along_y(std::vector<uint8_t> &data, int32_t w, int32_t h, int start, int end, int step, const std::string &filename);
 void rgb_auto_correlation(const BMP& file, const std::string &filename);
+void save_rgb_to_ycbcr(const std::string &fname, const BMP &file);
+uint8_t saturation(double x, int x_min, int x_max);
+ 
 
 #endif
 

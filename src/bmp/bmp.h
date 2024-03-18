@@ -53,9 +53,9 @@ public:
     BMP() = default;
     BMP(const std::string& fname);
 
-    void save_file(const std::string& fname);
-    void save_file(const std::string& fname, const std::vector<uint8_t>& data, const std::vector<RGBQuad>& palette = {});
-    void save_file_by_component(const std::string& fname, const char mod);
+    void save_file(const std::string& fname) const;
+    void save_file(const std::string& fname, const std::vector<uint8_t>& data, const std::vector<RGBQuad>& palette = {}) const;
+    void save_file_by_component(const std::string& fname, const char mod) const;
 
     const std::vector<uint8_t>& get_data() const { return _data; }
     int32_t const get_width() const { return _info_header.bi_width; }

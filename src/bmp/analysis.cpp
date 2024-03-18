@@ -1,4 +1,5 @@
 #include "analysis.h"
+#include "bmp.h"
 
 #include <algorithm>
 #include <future>
@@ -154,23 +155,6 @@ double standard_deviation(const std::vector<uint8_t>& data, double m_e, uint32_t
 std::map<int, double> auto_correlation(std::vector<uint8_t> data, int32_t w, int32_t h, int y) {
     std::map<int, double> res;
 
-    /*
-    for (int x {-(w / 4 - 1)}; x < w / 4; ++x) {
-        std::vector<uint8_t> a;
-        std::vector<uint8_t> b;
-        for (int i {1}; i < h - y; ++i) {
-            for (int j {1}; j < w - x; ++j) {
-                a.push_back(data[i * w + j]);
-            }
-        }
-        for (int m {y + 1}; m < h; ++m) {
-            for (int n {x + 1}; n < w; ++n) {
-                b.push_back(data[m * w + n]);
-            }
-        }
-        res.insert(std::make_pair(x, correlation(a, b)));
-    }
-    */
     int upper_bound {h}, lower_bound {},
         upper_bound_slide {h}, lower_bound_slide {};
     if (y < 0) {
@@ -180,6 +164,8 @@ std::map<int, double> auto_correlation(std::vector<uint8_t> data, int32_t w, int
         upper_bound_slide -= y;
         lower_bound += y;
     }
+
+    // -(w / 4 - 1) < x < 0
     for (int x {-(w / 4 - 1)}; x < 0; ++x) {
         std::vector<uint8_t> a;
         std::vector<uint8_t> b;
@@ -191,12 +177,13 @@ std::map<int, double> auto_correlation(std::vector<uint8_t> data, int32_t w, int
         }
         // sliding image
         for (int m {lower_bound_slide}; m < upper_bound_slide; ++m) {
-            for (int n {+x}; n < w; ++n) {
+            for (int n {w / 4 - 1}; n < w; ++n) {
                 b.push_back(data[m * w + n]);
             }
         }
         res.insert(std::make_pair(x, correlation(a, b)));
     }
+    // 0 < x < (w / 4)
     for (int x {0}; x < w / 4; ++x) {
         std::vector<uint8_t> a;
         std::vector<uint8_t> b;
@@ -214,6 +201,7 @@ std::map<int, double> auto_correlation(std::vector<uint8_t> data, int32_t w, int
         }
         res.insert(std::make_pair(x, correlation(a, b)));
     }
+
     return res;
 }
 
@@ -267,3 +255,33 @@ void rgb_auto_correlation(const BMP& file, const std::string &filename) {
     }
     auto_correlation_by_channel_along_y(channel, w, h, -10, 10, 5, (filename + "_b.txt"));
 }
+
+void save_rgb_to_ycbcr(const std::string &fname, const BMP &file) {
+    const std::vector<uint8_t> &tmp_data {file.get_data()};
+    std::vector<uint8_t> y_data (tmp_data.size());
+    std::vector<uint8_t> cb_data (tmp_data.size());
+    std::vector<uint8_t> cr_data (tmp_data.size());
+
+    for (int i {}; i < tmp_data.size(); i += 3) {
+        uint8_t y = saturation(0.299 * tmp_data[i + 2] + 0.587 * tmp_data[i + 1] + 0.114 * tmp_data[i], 0, 255);
+        uint8_t cb = saturation(0.5643 * (tmp_data[i] - y) + 128, 0, 255);
+        uint8_t cr = saturation(0.7132 * (tmp_data[i + 2] - y) + 128, 0, 255);
+
+        y_data[i] = y_data[i + 1] = y_data[i + 2] = y;
+        cb_data[i] = cb_data[i + 1] = cb_data[i + 2] = cb;
+        cr_data[i] = cr_data[i + 1] = cr_data[i + 2] = cr;
+    }
+
+    file.save_file(fname + "_by_y_component.bmp", y_data);
+    file.save_file(fname + "_by_cb_component.bmp", cb_data);
+    file.save_file(fname + "_by_cr_component.bmp", cr_data);
+}
+
+uint8_t saturation(double x, int x_min, int x_max) {
+    if (x < x_min) {
+        return x_min;
+    } else if (x > x_max) {
+        return x_max;
+    }
+    return static_cast<uint8_t>(x);
+} 

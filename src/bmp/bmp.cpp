@@ -59,11 +59,11 @@ BMP::BMP(const std::string& fname) {
     }
 }
 
-void BMP::save_file(const std::string& fname) {
+void BMP::save_file(const std::string& fname) const {
     save_file(fname, _data, _palette);
 }
 
-void BMP::save_file(const std::string& fname, const std::vector<uint8_t>& data, const std::vector<RGBQuad>& palette) {
+void BMP::save_file(const std::string& fname, const std::vector<uint8_t>& data, const std::vector<RGBQuad>& palette) const {
     fs::path fpath(fs::current_path().parent_path().parent_path() / "img");
     if (!fs::is_directory(fpath)) {
         fs::create_directory(fpath);
@@ -71,8 +71,8 @@ void BMP::save_file(const std::string& fname, const std::vector<uint8_t>& data, 
     std::ofstream fout(fpath / fname, std::ios::binary);
     if (fout) {
         // write header
-        fout.write(reinterpret_cast<char*>(&_file_header), sizeof(_file_header));
-        fout.write(reinterpret_cast<char*>(&_info_header), sizeof(_info_header));
+        fout.write(reinterpret_cast<char*>(const_cast<struct BMPFileHeader*>(&_file_header)), sizeof(_file_header));
+        fout.write(reinterpret_cast<char*>(const_cast<struct BMPInfoHeader*>(&_info_header)), sizeof(_info_header));
 
         // write palette and offset garbage
         if (_file_header.bf_off_bits > 54) {
@@ -113,7 +113,7 @@ void BMP::save_file(const std::string& fname, const std::vector<uint8_t>& data, 
     }
 }
 
-void BMP::save_file_by_component(const std::string& fname, const char mod) {
+void BMP::save_file_by_component(const std::string& fname, const char mod) const {
     std::vector<uint8_t> tmp_data {_data};
     switch (mod) {
         case 'r':
