@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <future>
-#include <thread>
 #include <fstream>
 #include <utility>
 #include <cmath>
@@ -61,19 +60,13 @@ void rgb_correlation(const BMP& file) {
     std::cout << "Correlation of image components: [B,R] = " << correlation(b, r) << std::endl;
 }
 
-void ycbcr_correlation(const BMP& file) {
-    int size {file.get_height() * file.get_width()};
-    std::vector<uint8_t> y_data(size), cb_data(size), cr_data(size);
-    const std::vector<uint8_t> &data {file.get_data()};
+void ycbcr_correlation(const std::vector<uint8_t> &data) {
+    std::vector<uint8_t> y_data(data.size()), cb_data(data.size()), cr_data(data.size());
 
-    for (int i {}, j {}; j < size && i < data.size(); i += 3, ++j) {
-        uint8_t y = saturation(0.299 * data[i + 2] + 0.587 * data[i + 1] + 0.114 * data[i], 0, 255);
-        uint8_t cb = saturation(0.5643 * (data[i] - y) + 128, 0, 255);
-        uint8_t cr = saturation(0.7132 * (data[i + 2] - y) + 128, 0, 255);
-
-        y_data[j] = y;
-        cb_data[j] = cb;
-        cr_data[j] = cr;
+    for (size_t i {}, j {}; j != data.size() && i != data.size(); i += 3, ++j) {
+        y_data[j] = data[i];
+        cb_data[j] = data[i + 1];
+        cr_data[j] = data[i + 2];
     }
 
     std::cout << "Correlation of image components: [Y,Cb] = " << correlation(y_data, cb_data) << std::endl;
@@ -129,7 +122,7 @@ double standard_deviation(const std::vector<uint8_t>& data, double m_e, uint32_t
     return std::sqrt(d / (width * height - 1));
 }
 
-std::map<int, double> auto_correlation(std::vector<uint8_t> data, int32_t w, int32_t h, int y) {
+std::map<int, double> auto_correlation(const std::vector<uint8_t> &data, int32_t w, int32_t h, int y) {
     std::map<int, double> res;
 
     int upper_bound {h}, lower_bound {},
@@ -217,61 +210,86 @@ void rgb_auto_correlation(const BMP& file, const std::string &filename) {
     const std::vector<uint8_t> &data = file.get_data();
 
     // r channel auto correlation
-    for (int i {}, j {}; i < data.size(); i += 3, ++j) {
+    for (size_t i {}, j {}; i != data.size(); i += 3, ++j) {
         channel[j] = data[i + 2];
     }
     auto_correlation_by_channel_along_y(channel, w, h, -10, 10, 5, (filename + "_r.txt"));
     // g channel auto correlation
-    for (int i {}, j {}; i < data.size(); i += 3, ++j) {
+    for (size_t i {}, j {}; i != data.size(); i += 3, ++j) {
         channel[j] = data[i + 1];
     }
     auto_correlation_by_channel_along_y(channel, w, h, -10, 10, 5, (filename + "_g.txt"));
     // b channel auto correlation
-    for (int i {}, j {}; i < data.size(); i += 3, ++j) {
+    for (size_t i {}, j {}; i != data.size(); i += 3, ++j) {
         channel[j] = data[i];
     }
     auto_correlation_by_channel_along_y(channel, w, h, -10, 10, 5, (filename + "_b.txt"));
 }
 
-void ycbcr_auto_correlation(const BMP& file, const std::string &filename) {
+void ycbcr_auto_correlation(const BMP& file, const std::string &filename, const std::vector<uint8_t> &data) {
     int32_t size {file.get_height() * file.get_width()},
             w {file.get_width()},
-            h {file.get_height()};
+            h {file.get_height()},
+            j {};
     std::vector<uint8_t> y_data(size), cb_data(size), cr_data(size);
-    const std::vector<uint8_t> &data = file.get_data();
 
-    for (int i {}, j {}; j < size && i < data.size(); i += 3, ++j) {
+    for (size_t i {}; j < size && i != data.size(); i += 3, ++j) {
+        y_data[j] = data[i];
+        cb_data[j] = data[i + 1];
+        cr_data[j] = data[i + 2];
+    }
+
+    // y channel auto correlation
+    auto_correlation_by_channel_along_y(y_data, w, h, -10, 10, 5, (filename + "_y.txt"));
+    // cb channel auto correlation
+    auto_correlation_by_channel_along_y(cb_data, w, h, -10, 10, 5, (filename + "_cb.txt"));
+    // cr channel auto correlation
+    auto_correlation_by_channel_along_y(cr_data, w, h, -10, 10, 5, (filename + "_cr.txt"));
+}
+
+std::vector<uint8_t> rgb_to_ycbcr(const BMP &file) {
+    const std::vector<uint8_t> &data {file.get_data()};
+    std::vector<uint8_t> ycbcr_data(data.size());
+
+    for (size_t i {}; i != data.size(); i += 3) {
         uint8_t y = saturation(0.299 * data[i + 2] + 0.587 * data[i + 1] + 0.114 * data[i], 0, 255);
         uint8_t cb = saturation(0.5643 * (data[i] - y) + 128, 0, 255);
         uint8_t cr = saturation(0.7132 * (data[i + 2] - y) + 128, 0, 255);
 
-        y_data[j] = y;
-        cb_data[j] = cb;
-        cr_data[j] = cr;
+        ycbcr_data[i    ] = y;
+        ycbcr_data[i + 1] = cb;
+        ycbcr_data[i + 2] = cr;
     }
 
-    // r channel auto correlation
-    auto_correlation_by_channel_along_y(y_data, w, h, -10, 10, 5, (filename + "_y.txt"));
-    // g channel auto correlation
-    auto_correlation_by_channel_along_y(cb_data, w, h, -10, 10, 5, (filename + "_cb.txt"));
-    // b channel auto correlation
-    auto_correlation_by_channel_along_y(cr_data, w, h, -10, 10, 5, (filename + "_cr.txt"));
+    return ycbcr_data;
 }
 
-void save_rgb_to_ycbcr(const std::string &fname, const BMP &file) {
-    const std::vector<uint8_t> &tmp_data {file.get_data()};
+std::vector<uint8_t> ycbcr_to_rgb(const std::vector<uint8_t> &data) {
+    std::vector<uint8_t> rgb_data(data.size());
+
+    for (size_t i {}; i != data.size(); i += 3) {
+        uint8_t g = saturation(data[i] - 0.714 * (data[i + 2] - 128) - 0.334 * (data[i + 1] - 128), 0, 255);
+        uint8_t r = saturation(data[i] + 1.402 * (data[i + 2] - 128), 0, 255);
+        uint8_t b = saturation(data[i] + 1.772 * (data[i + 1] - 128), 0, 255);
+
+        rgb_data[i    ] = b;
+        rgb_data[i + 1] = g;
+        rgb_data[i + 2] = r;
+    }
+
+    return rgb_data;
+}
+
+void save_rgb_to_ycbcr(const std::string &fname, const BMP &file, const std::vector<uint8_t> &data) {
     std::vector<uint8_t> y_data (file.get_size_image());
     std::vector<uint8_t> cb_data (file.get_size_image());
     std::vector<uint8_t> cr_data (file.get_size_image());
 
-    for (int i {}; i < tmp_data.size(); i += 3) {
-        uint8_t y = saturation(0.299 * tmp_data[i + 2] + 0.587 * tmp_data[i + 1] + 0.114 * tmp_data[i], 0, 255);
-        uint8_t cb = saturation(0.5643 * (tmp_data[i] - y) + 128, 0, 255);
-        uint8_t cr = saturation(0.7132 * (tmp_data[i + 2] - y) + 128, 0, 255);
+    for (size_t i {}; i != data.size(); i += 3) {
 
-        y_data[i] = y_data[i + 1] = y_data[i + 2] = y;
-        cb_data[i] = cb_data[i + 1] = cb_data[i + 2] = cb;
-        cr_data[i] = cr_data[i + 1] = cr_data[i + 2] = cr;
+        y_data[i] = y_data[i + 1] = y_data[i + 2] = data[i];
+        cb_data[i] = cb_data[i + 1] = cb_data[i + 2] = data[i + 1];
+        cr_data[i] = cr_data[i + 1] = cr_data[i + 2] = data[i + 2];
     }
 
     file.save_file(fname + "_by_y_component.bmp", y_data);
@@ -287,3 +305,41 @@ uint8_t saturation(double x, int x_min, int x_max) {
     }
     return static_cast<uint8_t>(x);
 } 
+
+double psnr(const std::vector<uint8_t> &a, const std::vector<uint8_t> &b) {
+    double res {};
+    int size {static_cast<int>(std::min(a.size(), b.size()))};
+
+    for (int i {}; i < size; ++i) {
+        res += std::pow(a[i] - b[i], 2);
+    }
+    res = 10 * std::log10(size * std::pow((std::pow(2, 8) - 1), 2) / res);
+
+    return res;
+}
+
+void rgb_ycbcr_psnr(const std::vector<uint8_t> &rgb_data, const std::vector<uint8_t> &ycbcr_data, int w, int h) {
+    std::vector<uint8_t> recovered_rgb_data {ycbcr_to_rgb(ycbcr_data)};
+
+    std::vector<uint8_t> a(w * h);
+    std::vector<uint8_t> b(w * h);
+
+    // PSNR of r
+    for (size_t i {}; i < rgb_data.size(); i += 3) {
+        a[i] = rgb_data[i + 2];
+        b[i] = recovered_rgb_data[i + 2];
+    }
+    std::cout << "RGB -> YCbCr -> RGB; R PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of g
+    for (size_t i {}; i < rgb_data.size(); i += 3) {
+        a[i] = rgb_data[i + 1];
+        b[i] = recovered_rgb_data[i + 1];
+    }
+    std::cout << "RGB -> YCbCr -> RGB; G PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of b
+    for (size_t i {}; i < rgb_data.size(); i += 3) {
+        a[i] = rgb_data[i];
+        b[i] = recovered_rgb_data[i];
+    }
+    std::cout << "RGB -> YCbCr -> RGB; B PSNR = " << psnr(a, b) << std::endl;
+}
