@@ -50,58 +50,35 @@ double correlation(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b)
 void rgb_correlation(const BMP& file) {
 
     std::vector<uint8_t> r(file.get_size_image()), g(file.get_size_image()), b(file.get_size_image());
-    const std::vector<uint8_t> ddata {file.get_data()};
-    for (size_t i {}, j {}; i <= ddata.size(); i += 3, ++j) {
-        r[j] = ddata[i + 2];
-        g[j] = ddata[i + 1];
-        b[j] = ddata[i    ];
+    const std::vector<uint8_t> &data {file.get_data()};
+    for (size_t i {}, j {}; i <= data.size(); i += 3, ++j) {
+        r[j] = data[i + 2];
+        g[j] = data[i + 1];
+        b[j] = data[i    ];
     }
     std::cout << "Correlation of image components: [R,G] = " << correlation(r, g) << std::endl;
     std::cout << "Correlation of image components: [G,B] = " << correlation(g, b) << std::endl;
     std::cout << "Correlation of image components: [B,R] = " << correlation(b, r) << std::endl;
+}
 
-    // previous version
-    /*
-    double m_r {}, d_r {}, m_g {}, d_g {}, m_b {}, d_b {};
-    const std::vector<uint8_t> data {file.get_data()}; 
-    int img_size {static_cast<int>(file.get_size_image())};
+void ycbcr_correlation(const BMP& file) {
+    int size {file.get_height() * file.get_width()};
+    std::vector<uint8_t> y_data(size), cb_data(size), cr_data(size);
+    const std::vector<uint8_t> &data {file.get_data()};
 
-    // math expectation
-    for (size_t i {}; i < img_size; i += 3) {
-        m_r += data[i + 2];
-        m_g += data[i + 1];
-        m_b += data[i    ];
+    for (int i {}, j {}; j < size && i < data.size(); i += 3, ++j) {
+        uint8_t y = saturation(0.299 * data[i + 2] + 0.587 * data[i + 1] + 0.114 * data[i], 0, 255);
+        uint8_t cb = saturation(0.5643 * (data[i] - y) + 128, 0, 255);
+        uint8_t cr = saturation(0.7132 * (data[i + 2] - y) + 128, 0, 255);
+
+        y_data[j] = y;
+        cb_data[j] = cb;
+        cr_data[j] = cr;
     }
-    m_r /= (img_size);
-    m_g /= (img_size);
-    m_b /= (img_size);
 
-    // standard deviation
-    for (size_t i {}; i < img_size; i += 3) {
-        d_r += std::pow(data[i + 2] - m_r, 2);
-        d_g += std::pow(data[i + 1] - m_g, 2);
-        d_b += std::pow(data[i    ] - m_b, 2);
-    }
-    d_r = std::sqrt(d_r / (img_size - 1));
-    d_g = std::sqrt(d_g / (img_size - 1));
-    d_b = std::sqrt(d_b / (img_size - 1));
-
-    // correlation
-    double r_rg {}, r_gb {}, r_br {};
-    for (size_t i {}; i < img_size; i += 3) {
-        r_rg += (data[i + 2] - m_r) * (data[i + 1] - m_g);
-        r_gb += (data[i + 1] - m_g) * (data[i    ] - m_b);
-        r_br += (data[i    ] - m_b) * (data[i + 2] - m_r);
-    }
-    r_rg /= img_size;
-    r_gb /= img_size;
-    r_br /= img_size;
-    r_rg /= d_r * d_g;
-    r_gb /= d_g * d_b;
-    r_br /= d_b * d_r;
-
-    std::cout << "Correlation of imgae components: [R,G] = " << r_rg << ", [G,B] = " << r_gb << ", [B,R] = " << r_br << std::endl;
-    */
+    std::cout << "Correlation of image components: [Y,Cb] = " << correlation(y_data, cb_data) << std::endl;
+    std::cout << "Correlation of image components: [Cb,Cr] = " << correlation(cb_data, cr_data) << std::endl;
+    std::cout << "Correlation of image components: [Cr,Y] = " << correlation(cr_data, y_data) << std::endl;
 }
 
 double math_expectation(const std::vector<uint8_t>& data, const uint32_t width, const uint32_t height, const char component) {
@@ -177,7 +154,7 @@ std::map<int, double> auto_correlation(std::vector<uint8_t> data, int32_t w, int
         }
         // sliding image
         for (int m {lower_bound_slide}; m < upper_bound_slide; ++m) {
-            for (int n {w / 4 - 1}; n < w; ++n) {
+            for (int n {std::abs(x)}; n < w; ++n) {
                 b.push_back(data[m * w + n]);
             }
         }
@@ -205,7 +182,7 @@ std::map<int, double> auto_correlation(std::vector<uint8_t> data, int32_t w, int
     return res;
 }
 
-void auto_correlation_by_channel_along_y(std::vector<uint8_t> &data, int32_t w, int32_t h, int start, int end, int step, const std::string &filename) {
+void auto_correlation_by_channel_along_y(const std::vector<uint8_t> &data, int32_t w, int32_t h, int start, int end, int step, const std::string &filename) {
     fs::path fpath(fs::current_path().parent_path().parent_path() / "tmp");
     if (!fs::is_directory(fpath)) {
         fs::create_directory(fpath);
@@ -233,10 +210,10 @@ void auto_correlation_by_channel_along_y(std::vector<uint8_t> &data, int32_t w, 
 }
 
 void rgb_auto_correlation(const BMP& file, const std::string &filename) {
-    int32_t im_size {file.get_height() * file.get_width()},
+    int32_t size {file.get_height() * file.get_width()},
             w {file.get_width()},
             h {file.get_height()};
-    std::vector<uint8_t> channel(im_size);
+    std::vector<uint8_t> channel(size);
     const std::vector<uint8_t> &data = file.get_data();
 
     // r channel auto correlation
@@ -256,11 +233,36 @@ void rgb_auto_correlation(const BMP& file, const std::string &filename) {
     auto_correlation_by_channel_along_y(channel, w, h, -10, 10, 5, (filename + "_b.txt"));
 }
 
+void ycbcr_auto_correlation(const BMP& file, const std::string &filename) {
+    int32_t size {file.get_height() * file.get_width()},
+            w {file.get_width()},
+            h {file.get_height()};
+    std::vector<uint8_t> y_data(size), cb_data(size), cr_data(size);
+    const std::vector<uint8_t> &data = file.get_data();
+
+    for (int i {}, j {}; j < size && i < data.size(); i += 3, ++j) {
+        uint8_t y = saturation(0.299 * data[i + 2] + 0.587 * data[i + 1] + 0.114 * data[i], 0, 255);
+        uint8_t cb = saturation(0.5643 * (data[i] - y) + 128, 0, 255);
+        uint8_t cr = saturation(0.7132 * (data[i + 2] - y) + 128, 0, 255);
+
+        y_data[j] = y;
+        cb_data[j] = cb;
+        cr_data[j] = cr;
+    }
+
+    // r channel auto correlation
+    auto_correlation_by_channel_along_y(y_data, w, h, -10, 10, 5, (filename + "_y.txt"));
+    // g channel auto correlation
+    auto_correlation_by_channel_along_y(cb_data, w, h, -10, 10, 5, (filename + "_cb.txt"));
+    // b channel auto correlation
+    auto_correlation_by_channel_along_y(cr_data, w, h, -10, 10, 5, (filename + "_cr.txt"));
+}
+
 void save_rgb_to_ycbcr(const std::string &fname, const BMP &file) {
     const std::vector<uint8_t> &tmp_data {file.get_data()};
-    std::vector<uint8_t> y_data (tmp_data.size());
-    std::vector<uint8_t> cb_data (tmp_data.size());
-    std::vector<uint8_t> cr_data (tmp_data.size());
+    std::vector<uint8_t> y_data (file.get_size_image());
+    std::vector<uint8_t> cb_data (file.get_size_image());
+    std::vector<uint8_t> cr_data (file.get_size_image());
 
     for (int i {}; i < tmp_data.size(); i += 3) {
         uint8_t y = saturation(0.299 * tmp_data[i + 2] + 0.587 * tmp_data[i + 1] + 0.114 * tmp_data[i], 0, 255);
