@@ -321,25 +321,26 @@ double psnr(const std::vector<uint8_t> &a, const std::vector<uint8_t> &b) {
 void rgb_ycbcr_psnr(const std::vector<uint8_t> &rgb_data, const std::vector<uint8_t> &ycbcr_data, int w, int h) {
     std::vector<uint8_t> recovered_rgb_data {ycbcr_to_rgb(ycbcr_data)};
 
-    std::vector<uint8_t> a(w * h);
-    std::vector<uint8_t> b(w * h);
+    size_t s {static_cast<size_t>(w * h)};
+    std::vector<uint8_t> a(s);
+    std::vector<uint8_t> b(s);
 
     // PSNR of r
-    for (size_t i {}; i < rgb_data.size(); i += 3) {
-        a[i] = rgb_data[i + 2];
-        b[i] = recovered_rgb_data[i + 2];
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = rgb_data[i + 2];
+        b[j] = recovered_rgb_data[i + 2];
     }
     std::cout << "RGB -> YCbCr -> RGB; R PSNR = " << psnr(a, b) << std::endl;
     // PSNR of g
-    for (size_t i {}; i < rgb_data.size(); i += 3) {
-        a[i] = rgb_data[i + 1];
-        b[i] = recovered_rgb_data[i + 1];
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = rgb_data[i + 1];
+        b[j] = recovered_rgb_data[i + 1];
     }
     std::cout << "RGB -> YCbCr -> RGB; G PSNR = " << psnr(a, b) << std::endl;
     // PSNR of b
-    for (size_t i {}; i < rgb_data.size(); i += 3) {
-        a[i] = rgb_data[i];
-        b[i] = recovered_rgb_data[i];
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = rgb_data[i];
+        b[j] = recovered_rgb_data[i];
     }
     std::cout << "RGB -> YCbCr -> RGB; B PSNR = " << psnr(a, b) << std::endl;
 }
