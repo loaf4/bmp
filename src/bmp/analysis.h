@@ -29,7 +29,8 @@ void save_rgb_to_ycbcr(const std::string &fname, const BMP &file, const std::vec
 uint8_t saturation(double x, int x_min, int x_max);
 double psnr(const std::vector<uint8_t> &a, const std::vector<uint8_t> &b);
 void rgb_ycbcr_psnr(const std::vector<uint8_t> &rgb_data, const std::vector<uint8_t> &ycbcr_data, int w, int h);
- 
+void decimation_even(const BMP &file, int factor);
+void decimation_square(const BMP &file, int factor);
 
 #endif
 

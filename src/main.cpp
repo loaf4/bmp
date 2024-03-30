@@ -7,6 +7,7 @@
 
 int main(int argc, char* argv[]) {
     BMP f("goldhill.bmp");
+    const std::vector<uint8_t> &rgb_data {f.get_data()};
     std::vector<uint8_t> ycbcr_data {rgb_to_ycbcr(f)};
 
     /*
@@ -39,7 +40,13 @@ int main(int argc, char* argv[]) {
     */
 
     // calculate PSNR of original and recovered RGB data
-    rgb_ycbcr_psnr(f.get_data(), ycbcr_data, f.get_width(), f.get_height());
+    // rgb_ycbcr_psnr(f.get_data(), ycbcr_data, f.get_width(), f.get_height());
+
+    // decimation ( 8 - 11 )
+    decimation_even(f, 2);
+    decimation_even(f, 4);
+    decimation_square(f, 2);
+    decimation_square(f, 4);
 
     return 0;
 }

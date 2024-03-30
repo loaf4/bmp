@@ -344,3 +344,168 @@ void rgb_ycbcr_psnr(const std::vector<uint8_t> &rgb_data, const std::vector<uint
     }
     std::cout << "RGB -> YCbCr -> RGB; B PSNR = " << psnr(a, b) << std::endl;
 }
+
+void decimation_even(const BMP &file, int factor) {
+    const std::vector<uint8_t> &rgb_data {file.get_data()};
+    std::vector<uint8_t> ycbcr_data {rgb_to_ycbcr(file)};
+
+    size_t h_decimated {static_cast<size_t>(file.get_height() / factor)},
+           w_decimated {static_cast<size_t>(file.get_width() / factor)},
+           h {static_cast<size_t>(file.get_height())},
+           w {static_cast<size_t>(file.get_width())};
+
+    std::vector<uint8_t> cb_data_decimated(h_decimated * w_decimated);
+    std::vector<uint8_t> cr_data_decimated(h_decimated * w_decimated);
+
+    for (size_t i {static_cast<size_t>(factor - 1)}, k {}; i < h; i += factor, ++k) {
+        for (size_t j {static_cast<size_t>(factor - 1)}, y {}; j < w; j += factor, ++y) {
+            cb_data_decimated[k * w_decimated + y] = ycbcr_data[i * h + w + 1];
+            cr_data_decimated[k * w_decimated + y] = ycbcr_data[i * h + w + 2];
+        }
+    }
+    /*
+    for (size_t i {}, j {}, k {1}; i < ycbcr_data.size(); i += 3, ++j, ++k) {
+        if (k == 1) {
+            cb_data_decimated[j] = ycbcr_data[i + 1];
+            cr_data_decimated[j] = ycbcr_data[i + 2];
+            continue;
+        }
+        if (k == factor) {
+            k = 1;
+        }
+    }
+    */
+
+    std::vector<uint8_t> ycbcr_recovered(rgb_data.size());
+    for (int i {}; i < rgb_data.size(); i += 3) {
+        ycbcr_recovered[i] = ycbcr_data[i];
+    }
+    for (size_t i {}, k {}; i < h; ++i, ++k) {
+        size_t cur_y {i / factor};
+        for (size_t j {}, y {}; j < w; ++j, y += 3) {
+            size_t cur_x {j / factor};
+            ycbcr_recovered[k * w + y + 1] = cb_data_decimated[cur_y * w_decimated + cur_x];
+            ycbcr_recovered[k * w + y + 2] = cr_data_decimated[cur_y * w_decimated + cur_x];
+        }
+    }
+    /*
+    for (size_t i {}, j {}; j < h_decimated * w_decimated && i < rgb_data.size(); i += 3 * factor, ++j) {
+        for (size_t k {}; k < factor; ++k) {
+            ycbcr_recovered[i + 1 + 3 * k] = cb_data_decimated[j];
+            ycbcr_recovered[i + 2 + 3 * k] = cr_data_decimated[j];
+        } 
+    }
+    */
+    std::vector<uint8_t> rgb_recovered {ycbcr_to_rgb(ycbcr_recovered)};
+
+    size_t s {static_cast<size_t>(w * h)};
+    std::vector<uint8_t> a(s);
+    std::vector<uint8_t> b(s);
+
+    std::cout << "---Decimation with saveing every " << factor << " lines---" << std::endl;
+    // PSNR of r
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = rgb_data[i + 2];
+        b[j] = rgb_recovered[i + 2];
+    }
+    std::cout << "RGB -> YCbCr -> RGB; R PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of g
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = rgb_data[i + 1];
+        b[j] = rgb_recovered[i + 1];
+    }
+    std::cout << "RGB -> YCbCr -> RGB; G PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of b
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = rgb_data[i];
+        b[j] = rgb_recovered[i];
+    }
+    std::cout << "RGB -> YCbCr -> RGB; B PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of cb
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = ycbcr_data[i + 1];
+        b[j] = ycbcr_recovered[i + 1];
+    }
+    std::cout << "YCbCr -> YCbCr(recovered); Cb PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of cr
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = ycbcr_data[i + 2];
+        b[j] = ycbcr_recovered[i + 2];
+    }
+    std::cout << "YCbCr -> YCbCr(recovered); Cr PSNR = " << psnr(a, b) << std::endl;
+}
+
+void decimation_square(const BMP &file, int factor) {
+    const std::vector<uint8_t> &rgb_data {file.get_data()};
+    std::vector<uint8_t> ycbcr_data {rgb_to_ycbcr(file)};
+
+    size_t h_decimated {static_cast<size_t>(file.get_height() / factor)},
+           w_decimated {static_cast<size_t>(file.get_width() / factor)},
+           h {static_cast<size_t>(file.get_height())},
+           w {static_cast<size_t>(file.get_width())};
+
+    std::vector<uint8_t> cb_data_decimated(h_decimated * w_decimated);
+    std::vector<uint8_t> cr_data_decimated(h_decimated * w_decimated);
+
+    for (size_t i {}, k {}; i < h; ++i, ++k) {
+        for (size_t j {}, y {}; j < w; ++j, ++y) {
+            cb_data_decimated[i / factor + j / factor] = ycbcr_data[i * h + w + 1];
+            cr_data_decimated[i / factor + j / factor] = ycbcr_data[i * h + w + 2];
+        }
+    }
+    int sq_size {factor * factor};
+    for (size_t i {}, j {}; i < cb_data_decimated.size() && j < cr_data_decimated.size(); ++i, ++j) {
+        cb_data_decimated[i] /= sq_size;
+        cr_data_decimated[i] /= sq_size;
+    }
+
+    std::vector<uint8_t> ycbcr_recovered(rgb_data.size());
+    for (int i {}; i < rgb_data.size(); i += 3) {
+        ycbcr_recovered[i] = ycbcr_data[i];
+    }
+    for (size_t i {}, k {}; i < h; ++i, ++k) {
+        size_t cur_y {i / factor};
+        for (size_t j {}, y {}; j < w; ++j, y += 3) {
+            size_t cur_x {j / factor};
+            ycbcr_recovered[k * w + y + 1] = cb_data_decimated[cur_y * w_decimated + cur_x];
+            ycbcr_recovered[k * w + y + 2] = cr_data_decimated[cur_y * w_decimated + cur_x];
+        }
+    }
+    std::vector<uint8_t> rgb_recovered {ycbcr_to_rgb(ycbcr_recovered)};
+
+    size_t s {static_cast<size_t>(w * h)};
+    std::vector<uint8_t> a(s);
+    std::vector<uint8_t> b(s);
+
+    std::cout << "---Decimation with average square with " << factor << " size of side---" << std::endl;
+    // PSNR of r
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = rgb_data[i + 2];
+        b[j] = rgb_recovered[i + 2];
+    }
+    std::cout << "RGB -> YCbCr -> RGB; R PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of g
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = rgb_data[i + 1];
+        b[j] = rgb_recovered[i + 1];
+    }
+    std::cout << "RGB -> YCbCr -> RGB; G PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of b
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = rgb_data[i];
+        b[j] = rgb_recovered[i];
+    }
+    std::cout << "RGB -> YCbCr -> RGB; B PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of cb
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = ycbcr_data[i + 1];
+        b[j] = ycbcr_recovered[i + 1];
+    }
+    std::cout << "YCbCr -> YCbCr(recovered); Cb PSNR = " << psnr(a, b) << std::endl;
+    // PSNR of cr
+    for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
+        a[j] = ycbcr_data[i + 2];
+        b[j] = ycbcr_recovered[i + 2];
+    }
+    std::cout << "YCbCr -> YCbCr(recovered); Cr PSNR = " << psnr(a, b) << std::endl;
+}
