@@ -13,9 +13,6 @@ double correlation(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b)
 void rgb_correlation(const BMP& file);
 void ycbcr_correlation(const std::vector<uint8_t> &data);
 
-double math_expectation(const std::vector<uint8_t>& data, const uint32_t width, const uint32_t height, const char component);
-double standard_deviation(const std::vector<uint8_t>& data, double m_e, uint32_t width, uint32_t height, const char component);
-
 // auto correlation
 std::map<int, double> auto_correlation(const std::vector<uint8_t> &data, int32_t w, int32_t h, int y);
 void auto_correlation_by_channel_along_y(const std::vector<uint8_t> &data, int32_t w, int32_t h, int start, int end, int step, const std::string &filename);

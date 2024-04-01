@@ -37,7 +37,6 @@ int main(int argc, char* argv[]) {
     // save recovered YCbCr to RGB ( 7 )
     std::vector<uint8_t> rgb_data {ycbcr_to_rgb(ycbcr_data)};
     f.save_file("goldhill_after_ycbcr", rgb_data);
-    */
 
     // calculate PSNR of original and recovered RGB data
     // rgb_ycbcr_psnr(f.get_data(), ycbcr_data, f.get_width(), f.get_height());
@@ -47,6 +46,7 @@ int main(int argc, char* argv[]) {
     decimation_even(f, 4);
     decimation_square(f, 2);
     decimation_square(f, 4);
+    */
 
     return 0;
 }

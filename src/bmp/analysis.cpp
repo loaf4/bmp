@@ -2,8 +2,10 @@
 #include "bmp.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <future>
 #include <fstream>
+#include <string>
 #include <utility>
 #include <cmath>
 #include <cstdint>
@@ -72,54 +74,6 @@ void ycbcr_correlation(const std::vector<uint8_t> &data) {
     std::cout << "Correlation of image components: [Y,Cb] = " << correlation(y_data, cb_data) << std::endl;
     std::cout << "Correlation of image components: [Cb,Cr] = " << correlation(cb_data, cr_data) << std::endl;
     std::cout << "Correlation of image components: [Cr,Y] = " << correlation(cr_data, y_data) << std::endl;
-}
-
-double math_expectation(const std::vector<uint8_t>& data, const uint32_t width, const uint32_t height, const char component) {
-    double m {};
-    switch (component) {
-        case 'r':
-            for (size_t i {}; i < data.size(); i += 3) {
-                m += data[i];
-            }
-            break;
-        case 'g':
-            for (size_t i {1}; i < data.size(); i += 3) {
-                m += data[i];
-            }
-            break;
-        case 'b':
-            for (size_t i {2}; i < data.size(); i += 3) {
-                m += data[i];
-            }
-            break;
-        default:
-            break;
-    }
-    return m / (width * height);
-}
-
-double standard_deviation(const std::vector<uint8_t>& data, double m_e, uint32_t width, uint32_t height, const char component) {
-    double d {};
-    switch (component) {
-        case 'r':
-            for (size_t i {}; i < data.size(); i += 3) {
-                d += std::pow(m_e - data[i], 2);
-            }
-            break;
-        case 'g':
-            for (size_t i {1}; i < data.size(); i += 3) {
-                d += std::pow(m_e - data[i], 2);
-            }
-            break;
-        case 'b':
-            for (size_t i {2}; i < data.size(); i += 3) {
-                d += std::pow(m_e - data[i], 2);
-            }
-            break;
-        default:
-            break;
-    }
-    return std::sqrt(d / (width * height - 1));
 }
 
 std::map<int, double> auto_correlation(const std::vector<uint8_t> &data, int32_t w, int32_t h, int y) {
@@ -349,60 +303,36 @@ void decimation_even(const BMP &file, int factor) {
     const std::vector<uint8_t> &rgb_data {file.get_data()};
     std::vector<uint8_t> ycbcr_data {rgb_to_ycbcr(file)};
 
-    size_t h_decimated {static_cast<size_t>(file.get_height() / factor)},
-           w_decimated {static_cast<size_t>(file.get_width() / factor)},
-           h {static_cast<size_t>(file.get_height())},
+    size_t h {static_cast<size_t>(file.get_height())},
            w {static_cast<size_t>(file.get_width())};
 
-    std::vector<uint8_t> cb_data_decimated(h_decimated * w_decimated);
-    std::vector<uint8_t> cr_data_decimated(h_decimated * w_decimated);
-
-    for (size_t i {static_cast<size_t>(factor - 1)}, k {}; i < h; i += factor, ++k) {
-        for (size_t j {static_cast<size_t>(factor - 1)}, y {}; j < w; j += factor, ++y) {
-            cb_data_decimated[k * w_decimated + y] = ycbcr_data[i * h + w + 1];
-            cr_data_decimated[k * w_decimated + y] = ycbcr_data[i * h + w + 2];
-        }
-    }
-    /*
-    for (size_t i {}, j {}, k {1}; i < ycbcr_data.size(); i += 3, ++j, ++k) {
-        if (k == 1) {
-            cb_data_decimated[j] = ycbcr_data[i + 1];
-            cr_data_decimated[j] = ycbcr_data[i + 2];
-            continue;
-        }
-        if (k == factor) {
-            k = 1;
-        }
-    }
-    */
-
-    std::vector<uint8_t> ycbcr_recovered(rgb_data.size());
-    for (int i {}; i < rgb_data.size(); i += 3) {
+    std::vector<uint8_t> ycbcr_recovered(ycbcr_data.size());
+    for (size_t i {}; i != ycbcr_data.size(); i += 3) {
         ycbcr_recovered[i] = ycbcr_data[i];
     }
-    for (size_t i {}, k {}; i < h; ++i, ++k) {
-        size_t cur_y {i / factor};
+
+    size_t cur_y {}, cur_x {}, w_p {w * 3};
+    for (size_t i {}; i < h; ++i) {
+        if (i % factor == 0) {
+            cur_y = i;
+        }
         for (size_t j {}, y {}; j < w; ++j, y += 3) {
-            size_t cur_x {j / factor};
-            ycbcr_recovered[k * w + y + 1] = cb_data_decimated[cur_y * w_decimated + cur_x];
-            ycbcr_recovered[k * w + y + 2] = cr_data_decimated[cur_y * w_decimated + cur_x];
+            if (j % factor == 0) {
+                cur_x = y;
+            }
+            ycbcr_recovered[i * w_p + y + 1] = ycbcr_data[cur_y * w_p + cur_x + 1];
+            ycbcr_recovered[i * w_p + y + 2] = ycbcr_data[cur_y * w_p + cur_x + 2];
         }
     }
-    /*
-    for (size_t i {}, j {}; j < h_decimated * w_decimated && i < rgb_data.size(); i += 3 * factor, ++j) {
-        for (size_t k {}; k < factor; ++k) {
-            ycbcr_recovered[i + 1 + 3 * k] = cb_data_decimated[j];
-            ycbcr_recovered[i + 2 + 3 * k] = cr_data_decimated[j];
-        } 
-    }
-    */
     std::vector<uint8_t> rgb_recovered {ycbcr_to_rgb(ycbcr_recovered)};
+
+    file.save_file("goldhill_after_decimation_even_" + std::to_string(factor), rgb_recovered);
 
     size_t s {static_cast<size_t>(w * h)};
     std::vector<uint8_t> a(s);
     std::vector<uint8_t> b(s);
 
-    std::cout << "---Decimation with saveing every " << factor << " lines---" << std::endl;
+    std::cout << "---Decimation with saving every " << factor << " lines---" << std::endl;
     // PSNR of r
     for (size_t i {}, j {}; j < s && i < rgb_data.size(); ++j, i += 3) {
         a[j] = rgb_data[i + 2];
@@ -442,36 +372,40 @@ void decimation_square(const BMP &file, int factor) {
     size_t h_decimated {static_cast<size_t>(file.get_height() / factor)},
            w_decimated {static_cast<size_t>(file.get_width() / factor)},
            h {static_cast<size_t>(file.get_height())},
-           w {static_cast<size_t>(file.get_width())};
+           w {static_cast<size_t>(file.get_width())}, 
+           w_p {w * 3};
 
-    std::vector<uint8_t> cb_data_decimated(h_decimated * w_decimated);
-    std::vector<uint8_t> cr_data_decimated(h_decimated * w_decimated);
+    std::vector<uint16_t> cb_data_decimated(h_decimated * w_decimated, 0);
+    std::vector<uint16_t> cr_data_decimated(h_decimated * w_decimated, 0);
 
-    for (size_t i {}, k {}; i < h; ++i, ++k) {
-        for (size_t j {}, y {}; j < w; ++j, ++y) {
-            cb_data_decimated[i / factor + j / factor] = ycbcr_data[i * h + w + 1];
-            cr_data_decimated[i / factor + j / factor] = ycbcr_data[i * h + w + 2];
+    for (size_t i {}; i != h; ++i) {
+        for (size_t j {}, y {}; j != w; ++j, y += 3) {
+            cb_data_decimated[(i / factor) * w_decimated + (j / factor)] += ycbcr_data[i * w_p + y + 1];
+            cr_data_decimated[(i / factor) * w_decimated + (j / factor)] += ycbcr_data[i * w_p + y + 2];
         }
     }
+
     int sq_size {factor * factor};
-    for (size_t i {}, j {}; i < cb_data_decimated.size() && j < cr_data_decimated.size(); ++i, ++j) {
+    for (size_t i {}; i != cb_data_decimated.size(); ++i) {
         cb_data_decimated[i] /= sq_size;
         cr_data_decimated[i] /= sq_size;
     }
 
-    std::vector<uint8_t> ycbcr_recovered(rgb_data.size());
-    for (int i {}; i < rgb_data.size(); i += 3) {
+    std::vector<uint8_t> ycbcr_recovered(ycbcr_data.size());
+    for (size_t i {}; i != ycbcr_data.size(); i += 3) {
         ycbcr_recovered[i] = ycbcr_data[i];
     }
-    for (size_t i {}, k {}; i < h; ++i, ++k) {
-        size_t cur_y {i / factor};
-        for (size_t j {}, y {}; j < w; ++j, y += 3) {
-            size_t cur_x {j / factor};
-            ycbcr_recovered[k * w + y + 1] = cb_data_decimated[cur_y * w_decimated + cur_x];
-            ycbcr_recovered[k * w + y + 2] = cr_data_decimated[cur_y * w_decimated + cur_x];
+
+    size_t cur_y {}, cur_x {};
+    for (size_t i {}; i != h; ++i) {
+        for (size_t j {}, y {}; j != w; ++j, y += 3) {
+            ycbcr_recovered[i * w_p + y + 1] = cb_data_decimated[(i / factor) * w_decimated + (j / factor)];
+            ycbcr_recovered[i * w_p + y + 2] = cr_data_decimated[(i / factor) * w_decimated + (j / factor)];
         }
     }
     std::vector<uint8_t> rgb_recovered {ycbcr_to_rgb(ycbcr_recovered)};
+
+    file.save_file("goldhill_after_decimation_square_" + std::to_string(factor), rgb_recovered);
 
     size_t s {static_cast<size_t>(w * h)};
     std::vector<uint8_t> a(s);
