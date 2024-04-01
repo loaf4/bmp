@@ -443,3 +443,39 @@ void decimation_square(const BMP &file, int factor) {
     }
     std::cout << "YCbCr -> YCbCr(recovered); Cr PSNR = " << psnr(a, b) << std::endl;
 }
+
+void rgb_component_frequency(const std::vector<uint8_t> &data) {
+    char components[] = {'b', 'g', 'r'};
+    int wh {static_cast<int>(data.size() / 3)};
+    std::vector<int32_t> freq(256, 0);
+
+    for (int i {}; i < 3; ++i) {
+        for (size_t j {}; j != data.size(); j += 3) {
+            ++freq[data[j + i]];
+        }
+
+        std::cout << "---frequency of " << components[i] << " component---" << std::endl;
+        for (size_t j {}; j != 256; ++j) {
+            std::cout << j << ":" << static_cast<double>(freq[j]) / wh << std::endl;
+        }
+        std::fill(freq.begin(), freq.end(), 0);
+    }
+}
+
+void ycbcr_component_frequency(const std::vector<uint8_t> &data) {
+    std::string components[] = {"y", "cb", "cr"};
+    int wh {static_cast<int>(data.size() / 3)};
+    std::vector<int32_t> freq(256, 0);
+
+    for (int i {}; i < 3; ++i) {
+        for (size_t j {}; j != data.size(); j += 3) {
+            ++freq[data[j + i]];
+        }
+        
+        std::cout << "---frequency of " << components[i] << " component---" << std::endl;
+        for (size_t j {}; j != 256; ++j) {
+            std::cout << j << ":" << static_cast<double>(freq[j]) / wh << std::endl;
+        }
+        std::fill(freq.begin(), freq.end(), 0);
+    }
+}

@@ -1,5 +1,6 @@
 #include "bmp.h"
 #include "analysis.h"
+#include "bmp/analysis.h"
 
 #include <iostream>
 #include <vector>
@@ -46,6 +47,10 @@ int main(int argc, char* argv[]) {
     decimation_even(f, 4);
     decimation_square(f, 2);
     decimation_square(f, 4);
+
+    // component frequency ( 12 )
+    rgb_component_frequency(rgb_data);
+    ycbcr_component_frequency(ycbcr_data);
     */
 
     return 0;

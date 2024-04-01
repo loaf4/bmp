@@ -8,6 +8,9 @@
 #include <cstdint>
 #include <cmath>
 
+void rgb_component_frequency(const std::vector<uint8_t> &data);
+void ycbcr_component_frequency(const std::vector<uint8_t> &data);
+
 // correlation
 double correlation(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b);
 void rgb_correlation(const BMP& file);
