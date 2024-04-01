@@ -33,9 +33,11 @@ void rgb_component_frequency(const std::vector<uint8_t> &data);
 void ycbcr_component_frequency(const std::vector<uint8_t> &data);
 
 // entropy
-double entropy(const std::vector<uint8_t> &data, const std::string &mode);
+double entropy(const std::vector<uint8_t> &data);
 void rgb_entropy(const std::vector<uint8_t> &data);
 void ycbcr_entropy(const std::vector<uint8_t> &data);
+std::vector<uint8_t> DPCM(const std::vector<uint8_t> &data, const int w, const int h, const int mode);
+void rgb_DPCM(const std::vector<uint8_t> &data, const int w, const int h);
 
 #endif
 

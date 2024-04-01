@@ -480,24 +480,13 @@ void ycbcr_component_frequency(const std::vector<uint8_t> &data) {
     }
 }
 
-double entropy(const std::vector<uint8_t> &data, const std::string &mode) {
+double entropy(const std::vector<uint8_t> &data) {
     double res {};
     std::vector<int64_t> cnt(256, 0);
-    int offset {};
-    if (mode == "r" || mode == "cr") {
-        offset = 2;
-    } else if (mode == "g" || mode == "cb") {
-        offset = 1;
-    } else if (mode == "b" || mode == "y") {
-        offset = 0;
-    } else {
-        std::cout << "error: incorrect mode" << std::endl;
-        return res;
-    }
-    int wh {static_cast<int>(data.size() / 3)};
+    int wh {static_cast<int>(data.size())};
 
-    for (size_t i {}; i != wh; i += 3) {
-        ++cnt[data[i + offset]];
+    for (size_t i {}; i != wh; ++i) {
+        ++cnt[data[i]];
     }
 
     for (size_t i {}; i != 256; ++i) {
@@ -512,13 +501,90 @@ double entropy(const std::vector<uint8_t> &data, const std::string &mode) {
 }
 
 void rgb_entropy(const std::vector<uint8_t> &data) {
-    std::cout << "entropy of 'r': " << entropy(data, "r") << std::endl; 
-    std::cout << "entropy of 'g': " << entropy(data, "g") << std::endl; 
-    std::cout << "entropy of 'b': " << entropy(data, "b") << std::endl; 
+    size_t s {data.size() / 3};
+    std::vector<uint8_t> a(s);
+
+    // entropy of r
+    for (size_t i {}, j {}; j != s && i != data.size(); ++j, i += 3) {
+        a[j] = data[i + 2];
+    }
+    std::cout << "entropy of 'r': " << entropy(a) << std::endl; 
+    // entropy of g
+    for (size_t i {}, j {}; j != s && i != data.size(); ++j, i += 3) {
+        a[j] = data[i + 1];
+    }
+    std::cout << "entropy of 'g': " << entropy(a) << std::endl; 
+    // entropy of b
+    for (size_t i {}, j {}; j != s && i != data.size(); ++j, i += 3) {
+        a[j] = data[i];
+    }
+    std::cout << "entropy of 'b': " << entropy(a) << std::endl; 
 }
 
 void ycbcr_entropy(const std::vector<uint8_t> &data) {
-    std::cout << "entropy of 'y': " << entropy(data, "y") << std::endl; 
-    std::cout << "entropy of 'cb': " << entropy(data, "cb") << std::endl; 
-    std::cout << "entropy of 'cr': " << entropy(data, "cr") << std::endl; 
+    size_t s {data.size() / 3};
+    std::vector<uint8_t> a(s);
+
+    // entropy of y
+    for (size_t i {}, j {}; j != s && i != data.size(); ++j, i += 3) {
+        a[j] = data[i];
+    }
+    std::cout << "entropy of 'y': " << entropy(a) << std::endl; 
+    // entropy of cb
+    for (size_t i {}, j {}; j != s && i != data.size(); ++j, i += 3) {
+        a[j] = data[i + 1];
+    }
+    std::cout << "entropy of 'cb': " << entropy(a) << std::endl; 
+    // entropy of cr
+    for (size_t i {}, j {}; j != s && i != data.size(); ++j, i += 3) {
+        a[j] = data[i + 2];
+    }
+    std::cout << "entropy of 'cr': " << entropy(a) << std::endl; 
+}
+
+std::vector<uint8_t> DPCM(const std::vector<uint8_t> &data, const int w, const int h, const int mode) {
+    std::vector<uint8_t> res((w - 1) * (h - 1));
+    std::vector<int64_t> freq(511, 0);
+    for (size_t i {1}, k {}; i != w; ++i, ++k) {
+        for (size_t j {1}, y {}; j != h; ++j, ++y) {
+            switch (mode) {
+                case 1:
+                    ++freq[data[i * w + (j - 1)] - res[k * (w - 1) + y] + 255];
+                    break;
+                case 2:
+                    ++freq[data[(i - 1) * w + j] - res[k * (w - 1) + y] + 255];
+                    break;
+                case 3:
+                    ++freq[data[(i - 1) * w + (j - 1)] - res[k * (w - 1) + y]+ 255];
+                    break;
+                case 4:
+                    ++freq[(data[i * w + (j - 1)] + data[(i - 1) * w + j] + data[(i - 1) * w + (j - 1)]) / 3 - res[k * (w - 1) + y] + 255];
+                    break;
+            }
+        }
+    }
+
+    for (size_t i {}; i != 511; ++i) {
+        std::cout << i << "-" << freq[i] << std::endl;
+    }
+
+    return res;
+}
+
+void rgb_DPCM(const std::vector<uint8_t> &data, const int w, const int h) {
+    size_t s {static_cast<size_t>(w * h)};
+    std::vector<uint8_t> r(s),
+        g(s),
+        b(s),
+        tmp;
+
+    for (size_t i {}, j {}; i != data.size() && j != s; i += 3, ++j) {
+        r[j] = data[i + 2]; 
+        g[j] = data[i + 1]; 
+        b[j] = data[i    ]; 
+    }
+
+    std::cout << "---DPCM of 'r'---" << std::endl;
+    tmp = DPCM(r, w, h, 1);
+    std::cout << "entropy of 'r': " << entropy(tmp) << std::endl;
 }
