@@ -8,9 +8,6 @@
 #include <cstdint>
 #include <cmath>
 
-void rgb_component_frequency(const std::vector<uint8_t> &data);
-void ycbcr_component_frequency(const std::vector<uint8_t> &data);
-
 // correlation
 double correlation(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b);
 void rgb_correlation(const BMP& file);
@@ -31,6 +28,14 @@ double psnr(const std::vector<uint8_t> &a, const std::vector<uint8_t> &b);
 void rgb_ycbcr_psnr(const std::vector<uint8_t> &rgb_data, const std::vector<uint8_t> &ycbcr_data, int w, int h);
 void decimation_even(const BMP &file, int factor);
 void decimation_square(const BMP &file, int factor);
+
+void rgb_component_frequency(const std::vector<uint8_t> &data);
+void ycbcr_component_frequency(const std::vector<uint8_t> &data);
+
+// entropy
+double entropy(const std::vector<uint8_t> &data, const std::string &mode);
+void rgb_entropy(const std::vector<uint8_t> &data);
+void ycbcr_entropy(const std::vector<uint8_t> &data);
 
 #endif
 

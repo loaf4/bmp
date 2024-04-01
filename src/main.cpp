@@ -1,6 +1,5 @@
 #include "bmp.h"
 #include "analysis.h"
-#include "bmp/analysis.h"
 
 #include <iostream>
 #include <vector>
@@ -52,6 +51,10 @@ int main(int argc, char* argv[]) {
     rgb_component_frequency(rgb_data);
     ycbcr_component_frequency(ycbcr_data);
     */
+
+    // entropy ( 13 )
+    rgb_entropy(rgb_data);
+    ycbcr_entropy(ycbcr_data);
 
     return 0;
 }

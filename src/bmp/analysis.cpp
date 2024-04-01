@@ -479,3 +479,46 @@ void ycbcr_component_frequency(const std::vector<uint8_t> &data) {
         std::fill(freq.begin(), freq.end(), 0);
     }
 }
+
+double entropy(const std::vector<uint8_t> &data, const std::string &mode) {
+    double res {};
+    std::vector<int64_t> cnt(256, 0);
+    int offset {};
+    if (mode == "r" || mode == "cr") {
+        offset = 2;
+    } else if (mode == "g" || mode == "cb") {
+        offset = 1;
+    } else if (mode == "b" || mode == "y") {
+        offset = 0;
+    } else {
+        std::cout << "error: incorrect mode" << std::endl;
+        return res;
+    }
+    int wh {static_cast<int>(data.size() / 3)};
+
+    for (size_t i {}; i != wh; i += 3) {
+        ++cnt[data[i + offset]];
+    }
+
+    for (size_t i {}; i != 256; ++i) {
+        if (cnt[i] == 0) {
+            continue;
+        }
+        double freq {static_cast<double>(cnt[i]) / wh};
+        res -= freq * std::log2(freq);
+    }
+
+    return res;
+}
+
+void rgb_entropy(const std::vector<uint8_t> &data) {
+    std::cout << "entropy of 'r': " << entropy(data, "r") << std::endl; 
+    std::cout << "entropy of 'g': " << entropy(data, "g") << std::endl; 
+    std::cout << "entropy of 'b': " << entropy(data, "b") << std::endl; 
+}
+
+void ycbcr_entropy(const std::vector<uint8_t> &data) {
+    std::cout << "entropy of 'y': " << entropy(data, "y") << std::endl; 
+    std::cout << "entropy of 'cb': " << entropy(data, "cb") << std::endl; 
+    std::cout << "entropy of 'cr': " << entropy(data, "cr") << std::endl; 
+}
