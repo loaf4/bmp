@@ -38,6 +38,7 @@ void rgb_entropy(const std::vector<uint8_t> &data);
 void ycbcr_entropy(const std::vector<uint8_t> &data);
 std::vector<uint8_t> DPCM(const std::vector<uint8_t> &data, const int w, const int h, const int mode);
 void rgb_DPCM(const std::vector<uint8_t> &data, const int w, const int h);
+void ycbcr_DPCM(const std::vector<uint8_t> &data, const int w, const int h);
 
 #endif
 

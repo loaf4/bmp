@@ -396,7 +396,6 @@ void decimation_square(const BMP &file, int factor) {
         ycbcr_recovered[i] = ycbcr_data[i];
     }
 
-    size_t cur_y {}, cur_x {};
     for (size_t i {}; i != h; ++i) {
         for (size_t j {}, y {}; j != w; ++j, y += 3) {
             ycbcr_recovered[i * w_p + y + 1] = cb_data_decimated[(i / factor) * w_decimated + (j / factor)];
@@ -483,7 +482,7 @@ void ycbcr_component_frequency(const std::vector<uint8_t> &data) {
 double entropy(const std::vector<uint8_t> &data) {
     double res {};
     std::vector<int64_t> cnt(256, 0);
-    int wh {static_cast<int>(data.size())};
+    size_t wh {data.size()};
 
     for (size_t i {}; i != wh; ++i) {
         ++cnt[data[i]];
@@ -545,20 +544,21 @@ void ycbcr_entropy(const std::vector<uint8_t> &data) {
 std::vector<uint8_t> DPCM(const std::vector<uint8_t> &data, const int w, const int h, const int mode) {
     std::vector<uint8_t> res((w - 1) * (h - 1));
     std::vector<int64_t> freq(511, 0);
-    for (size_t i {1}, k {}; i != w; ++i, ++k) {
-        for (size_t j {1}, y {}; j != h; ++j, ++y) {
+    for (size_t i {1}, k {}; i < h; ++i, ++k) {
+        for (size_t j {1}, y {}; j < w; ++j, ++y) {
+            res[k * (w - 1) + y] = data[i * w + j];
             switch (mode) {
                 case 1:
-                    ++freq[data[i * w + (j - 1)] - res[k * (w - 1) + y] + 255];
+                    ++freq[static_cast<int16_t>(data[i * w + (j - 1)]) - res[k * (w - 1) + y] + 255];
                     break;
                 case 2:
-                    ++freq[data[(i - 1) * w + j] - res[k * (w - 1) + y] + 255];
+                    ++freq[static_cast<int16_t>(data[(i - 1) * w + j]) - res[k * (w - 1) + y] + 255];
                     break;
                 case 3:
-                    ++freq[data[(i - 1) * w + (j - 1)] - res[k * (w - 1) + y]+ 255];
+                    ++freq[static_cast<int16_t>(data[(i - 1) * w + (j - 1)]) - res[k * (w - 1) + y]+ 255];
                     break;
                 case 4:
-                    ++freq[(data[i * w + (j - 1)] + data[(i - 1) * w + j] + data[(i - 1) * w + (j - 1)]) / 3 - res[k * (w - 1) + y] + 255];
+                    ++freq[static_cast<int16_t>((data[i * w + (j - 1)]) + data[(i - 1) * w + j] + data[(i - 1) * w + (j - 1)]) / 3 - res[k * (w - 1) + y] + 255];
                     break;
             }
         }
@@ -584,7 +584,73 @@ void rgb_DPCM(const std::vector<uint8_t> &data, const int w, const int h) {
         b[j] = data[i    ]; 
     }
 
-    std::cout << "---DPCM of 'r'---" << std::endl;
     tmp = DPCM(r, w, h, 1);
-    std::cout << "entropy of 'r': " << entropy(tmp) << std::endl;
+    std::cout << "entropy of 'r' (type 1): " << entropy(tmp) << std::endl;
+    tmp = DPCM(g, w, h, 1);
+    std::cout << "entropy of 'g' (type 1): " << entropy(tmp) << std::endl;
+    tmp = DPCM(b, w, h, 1);
+    std::cout << "entropy of 'b' (type 1): " << entropy(tmp) << std::endl;
+
+    tmp = DPCM(r, w, h, 2);
+    std::cout << "entropy of 'r' (type 2): " << entropy(tmp) << std::endl;
+    tmp = DPCM(g, w, h, 2);
+    std::cout << "entropy of 'g' (type 2): " << entropy(tmp) << std::endl;
+    tmp = DPCM(b, w, h, 2);
+    std::cout << "entropy of 'b' (type 2): " << entropy(tmp) << std::endl;
+
+    tmp = DPCM(r, w, h, 3);
+    std::cout << "entropy of 'r' (type 3): " << entropy(tmp) << std::endl;
+    tmp = DPCM(g, w, h, 3);
+    std::cout << "entropy of 'g' (type 3): " << entropy(tmp) << std::endl;
+    tmp = DPCM(b, w, h, 3);
+    std::cout << "entropy of 'b' (type 3): " << entropy(tmp) << std::endl;
+
+    tmp = DPCM(r, w, h, 4);
+    std::cout << "entropy of 'r' (type 4): " << entropy(tmp) << std::endl;
+    tmp = DPCM(g, w, h, 4);
+    std::cout << "entropy of 'g' (type 4): " << entropy(tmp) << std::endl;
+    tmp = DPCM(b, w, h, 4);
+    std::cout << "entropy of 'b' (type 4): " << entropy(tmp) << std::endl;
+}
+
+void ycbcr_DPCM(const std::vector<uint8_t> &data, const int w, const int h) {
+    size_t s {static_cast<size_t>(w * h)};
+    std::vector<uint8_t> y(s),
+        cb(s),
+        cr(s),
+        tmp;
+
+    for (size_t i {}, j {}; i != data.size() && j != s; i += 3, ++j) {
+        cr[j] = data[i + 2]; 
+        cb[j] = data[i + 1]; 
+        y[j] = data[i    ]; 
+    }
+
+    tmp = DPCM(y, w, h, 1);
+    std::cout << "entropy of 'y' (type 1): " << entropy(tmp) << std::endl;
+    tmp = DPCM(cb, w, h, 1);
+    std::cout << "entropy of 'cb' (type 1): " << entropy(tmp) << std::endl;
+    tmp = DPCM(cr, w, h, 1);
+    std::cout << "entropy of 'cr' (type 1): " << entropy(tmp) << std::endl;
+
+    tmp = DPCM(y, w, h, 2);
+    std::cout << "entropy of 'y' (type 2): " << entropy(tmp) << std::endl;
+    tmp = DPCM(cb, w, h, 2);
+    std::cout << "entropy of 'cb' (type 2): " << entropy(tmp) << std::endl;
+    tmp = DPCM(cr, w, h, 2);
+    std::cout << "entropy of 'cr' (type 2): " << entropy(tmp) << std::endl;
+
+    tmp = DPCM(y, w, h, 3);
+    std::cout << "entropy of 'y' (type 3): " << entropy(tmp) << std::endl;
+    tmp = DPCM(cb, w, h, 3);
+    std::cout << "entropy of 'cb' (type 3): " << entropy(tmp) << std::endl;
+    tmp = DPCM(cr, w, h, 3);
+    std::cout << "entropy of 'cr' (type 3): " << entropy(tmp) << std::endl;
+
+    tmp = DPCM(y, w, h, 4);
+    std::cout << "entropy of 'y' (type 4): " << entropy(tmp) << std::endl;
+    tmp = DPCM(cb, w, h, 4);
+    std::cout << "entropy of 'cb' (type 4): " << entropy(tmp) << std::endl;
+    tmp = DPCM(cr, w, h, 4);
+    std::cout << "entropy of 'cr' (type 4): " << entropy(tmp) << std::endl;
 }
